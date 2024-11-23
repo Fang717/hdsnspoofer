@@ -1,8 +1,0 @@
-# Clone the repository
-git clone -q --branch=master https://github.com/Fang717/hdsnspoofer.git C:\projects\hdsnspoofer
-cd C:\projects\hdsnspoofer
-
-# Build the driver project using msbuild
-Write-Output "Building the driver..."
-msbuild hdsnspoofer.sln /p:Configuration=Release /p:Platform=x64
-
