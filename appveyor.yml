@@ -33,17 +33,67 @@ install:
 # Build configuration
 build_script:
   - powershell: |
+      # First verify the solution file exists
+      $solutionPath = "driver\DriverProject.sln"
+      if (-Not (Test-Path $solutionPath)) {
+          Write-Error "Solution file not found at: $solutionPath"
+          Write-Output "Current directory: $(Get-Location)"
+          Write-Output "Directory contents:"
+          Get-ChildItem -Recurse | Select-Object FullName
+          exit 1
+      }
+
+      # Create and set specific output directory
+      $outputDir = ".\build\$env:platform\Release"
+      New-Item -ItemType Directory -Force -Path $outputDir
+      
       Write-Output "Starting build for $env:platform..."
+      Write-Output "Output directory: $outputDir"
+      
       try {
-          $buildOutput = msbuild "driver\DriverProject.sln" /p:Configuration=Release /p:Platform=$env:platform
+          # More verbose MSBuild command with specific output path
+          $buildArgs = @(
+              $solutionPath,
+              "/p:Configuration=Release",
+              "/p:Platform=$env:platform",
+              "/p:OutDir=$outputDir",
+              "/verbosity:detailed"
+          )
+          
+          & msbuild $buildArgs
+          
           if ($LASTEXITCODE -ne 0) {
               Write-Error "Build failed with exit code $LASTEXITCODE"
               exit $LASTEXITCODE
           }
-          Write-Output "Build completed successfully for $env:platform"
+          
+          # Verify build outputs
+          Write-Output "`nChecking build outputs:"
+          if (Test-Path $outputDir) {
+              Write-Output "Contents of build directory ($outputDir):"
+              Get-ChildItem -Path $outputDir -Recurse | Select-Object FullName
+          } else {
+              Write-Error "Output directory not found: $outputDir"
+              exit 1
+          }
+          
+          # Verify specific driver files
+          $expectedFiles = @("*.sys", "*.inf", "*.cat")
+          foreach ($pattern in $expectedFiles) {
+              $files = Get-ChildItem -Path $outputDir -Filter $pattern -Recurse
+              if ($files) {
+                  Write-Output "Found $($files.Count) $pattern files"
+              } else {
+                  Write-Warning "No $pattern files found in output directory"
+              }
+          }
       }
       catch {
           Write-Error "Build failed with error: $_"
           exit 1
       }
 
+# After build - collect artifacts
+artifacts:
+  - path: build\$(platform)\Release
+    name: DriverFiles_$(platform)
