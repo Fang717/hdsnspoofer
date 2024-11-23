@@ -27,5 +27,5 @@ install:
 # Build configuration
 build_script:
   - powershell: |
-      Write-Output 'Starting build for $env:platform...'
-      msbuild /p:Configuration=Release /p:Platform=$env:platform driver\DriverProject.sln
+      Write-Output "Starting build for $env:platform..."
+      msbuild "driver\DriverProject.sln" /p:Configuration=Release /p:Platform=$env:platform
