@@ -10,20 +10,22 @@ environment:
 
 # Install dependencies
 install:
-  - Write-Output "Downloading and installing the latest WDK from Microsoft..."
-  - Invoke-WebRequest -Uri $env:WDK_SETUP_URL -OutFile wdksetup.exe
-  - Start-Process -FilePath .\wdksetup.exe -ArgumentList "/quiet" -Wait
-  - Write-Output "WDK installation complete."
+  - powershell -Command "Write-Output 'Downloading and installing the latest WDK from Microsoft...'"
+  - powershell -Command "Invoke-WebRequest -Uri $env:WDK_SETUP_URL -OutFile wdksetup.exe"
+  - powershell -Command "Start-Process -FilePath .\wdksetup.exe -ArgumentList '/quiet' -Wait"
+  - powershell -Command "Write-Output 'WDK installation complete.'"
   
   # Verifying WDK installation
-  - Write-Output "Verifying WDK installation..."
-  - if (-Not (Test-Path "C:\Program Files (x86)\Windows Kits\10")) {
-      throw "WDK installation failed!"
-    } else {
-      Write-Output "WDK installed successfully."
-    }
+  - powershell -Command "
+      Write-Output 'Verifying WDK installation...'
+      if (-Not (Test-Path 'C:\Program Files (x86)\Windows Kits\10')) {
+          throw 'WDK installation failed!'
+      } else {
+          Write-Output 'WDK installed successfully.'
+      }
+  "
 
 # Build configuration
 build_script:
-  - Write-Output "Starting build for $env:platform..."
+  - powershell -Command "Write-Output 'Starting build for $env:platform...'"
   - msbuild /p:Configuration=Release /p:Platform=$env:platform driver\DriverProject.sln
