@@ -1,4 +1,3 @@
-
 # AppVeyor configuration for compiling a Windows driver
 
 version: "{build}"
@@ -16,10 +15,14 @@ build_script:
       Write-Output "Setting up WDK and SDK environment..."
       $wdkEnv = "$env:WDK_PATH\bin\10.0.17763.0\x64\setenv.bat"
       if (Test-Path $wdkEnv) {
-          cmd /c "$wdkEnv" &&
+          cmd /c "$wdkEnv"
+          if ($LASTEXITCODE -ne 0) {
+              Write-Error "Failed to execute WDK setenv.bat script."
+              exit 1
+          }
           Write-Output "WDK environment set up successfully."
       } else {
-          Write-Output "Failed to locate WDK environment setup script."
+          Write-Error "Failed to locate WDK environment setup script."
           exit 1
       }
 
