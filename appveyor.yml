@@ -36,7 +36,7 @@ build_script:
       # First, let's check what files we actually have
       Write-Output "Current directory contents:"
       Get-ChildItem -Recurse | Select-Object FullName
-      
+
       # Set output directory relative to build folder
       $buildDir = $env:APPVEYOR_BUILD_FOLDER
       $outputDir = Join-Path $buildDir "bin\$env:platform\Release"
@@ -45,16 +45,15 @@ build_script:
 
       # Create output directory
       New-Item -ItemType Directory -Force -Path $outputDir | Out-Null
-      
+
       # Find the solution file (located inside the driver directory)
       $solutionFile = Get-ChildItem -Path (Join-Path $buildDir 'driver') -Filter "*.sln" -Recurse | Select-Object -First 1
       if ($null -eq $solutionFile) {
           Write-Error "No .sln file found in the 'driver' directory"
           throw "No solution file found"
       }
-      
       Write-Output "Found solution file: $($solutionFile.FullName)"
-      
+
       # Build the solution
       $msbuildPath = "C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\MSBuild\Current\Bin\MSBuild.exe"
       if (-not (Test-Path $msbuildPath)) {
@@ -72,16 +71,17 @@ build_script:
       Write-Output "`nFiles in output directory:"
       Get-ChildItem -Path $outputDir -Recurse | ForEach-Object {
           Write-Output $_.FullName
+      }
 
 after_build:
   - ps: |
       # Package artifacts
       $artifactDir = Join-Path $env:APPVEYOR_BUILD_FOLDER "artifacts\$env:platform"
       New-Item -ItemType Directory -Force -Path $artifactDir | Out-Null
-      
+
       # Copy build outputs to artifact directory
       Copy-Item -Path "$outputDir\*" -Destination $artifactDir -Recurse -Force
-      
+
       Write-Output "`nContents of artifact directory:"
       Get-ChildItem -Path $artifactDir -Recurse | ForEach-Object {
           Write-Output $_.FullName
