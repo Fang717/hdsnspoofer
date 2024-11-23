@@ -1,5 +1,5 @@
-version: 1.0.{build}
 
+  
 # Environment configuration
 environment:
   matrix:
@@ -32,68 +32,59 @@ install:
 
 # Build configuration
 build_script:
-  - powershell: |
-      # First verify the solution file exists
-      $solutionPath = "driver\DriverProject.sln"
-      if (-Not (Test-Path $solutionPath)) {
-          Write-Error "Solution file not found at: $solutionPath"
-          Write-Output "Current directory: $(Get-Location)"
-          Write-Output "Directory contents:"
-          Get-ChildItem -Recurse | Select-Object FullName
-          exit 1
-      }
-
-      # Create and set specific output directory
-      $outputDir = ".\build\$env:platform\Release"
-      New-Item -ItemType Directory -Force -Path $outputDir
-      
-      Write-Output "Starting build for $env:platform..."
+  - ps: |
+      # Set output directory relative to build folder
+      $buildDir = $env:APPVEYOR_BUILD_FOLDER
+      $outputDir = Join-Path $buildDir "bin\$env:platform\Release"
+      Write-Output "Build directory: $buildDir"
       Write-Output "Output directory: $outputDir"
+
+      # Create output directory
+      New-Item -ItemType Directory -Force -Path $outputDir | Out-Null
       
-      try {
-          # More verbose MSBuild command with specific output path
-          $buildArgs = @(
-              $solutionPath,
-              "/p:Configuration=Release",
-              "/p:Platform=$env:platform",
-              "/p:OutDir=$outputDir",
-              "/verbosity:detailed"
-          )
-          
-          & msbuild $buildArgs
-          
-          if ($LASTEXITCODE -ne 0) {
-              Write-Error "Build failed with exit code $LASTEXITCODE"
-              exit $LASTEXITCODE
-          }
-          
-          # Verify build outputs
-          Write-Output "`nChecking build outputs:"
-          if (Test-Path $outputDir) {
-              Write-Output "Contents of build directory ($outputDir):"
-              Get-ChildItem -Path $outputDir -Recurse | Select-Object FullName
-          } else {
-              Write-Error "Output directory not found: $outputDir"
-              exit 1
-          }
-          
-          # Verify specific driver files
-          $expectedFiles = @("*.sys", "*.inf", "*.cat")
-          foreach ($pattern in $expectedFiles) {
-              $files = Get-ChildItem -Path $outputDir -Filter $pattern -Recurse
-              if ($files) {
-                  Write-Output "Found $($files.Count) $pattern files"
-              } else {
-                  Write-Warning "No $pattern files found in output directory"
-              }
-          }
-      }
-      catch {
-          Write-Error "Build failed with error: $_"
-          exit 1
+      # Build the solution
+      $solutionPath = "driver\DriverProject.sln"
+      Write-Output "Building solution: $solutionPath"
+      
+      $msbuildPath = "C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\MSBuild\Current\Bin\MSBuild.exe"
+      if (-not (Test-Path $msbuildPath)) {
+          $msbuildPath = "msbuild"
       }
 
-# After build - collect artifacts
+      & $msbuildPath $solutionPath `/p:Configuration=Release `/p:Platform=$env:platform `/p:OutDir=$outputDir `/verbosity:normal
+
+      if ($LastExitCode -ne 0) {
+          Write-Error "Build failed with exit code $LastExitCode"
+          throw "Build failed"
+      }
+
+      # List files in output directory
+      Write-Output "`nFiles in output directory:"
+      Get-ChildItem -Path $outputDir -Recurse | ForEach-Object {
+          Write-Output $_.FullName
+      }
+
+after_build:
+  - ps: |
+      # Package artifacts
+      $artifactDir = Join-Path $env:APPVEYOR_BUILD_FOLDER "artifacts\$env:platform"
+      New-Item -ItemType Directory -Force -Path $artifactDir | Out-Null
+      
+      # Copy build outputs to artifact directory
+      Copy-Item -Path "$outputDir\*" -Destination $artifactDir -Recurse -Force
+      
+      Write-Output "`nContents of artifact directory:"
+      Get-ChildItem -Path $artifactDir -Recurse | ForEach-Object {
+          Write-Output $_.FullName
+      }
+
+# Artifacts configuration
 artifacts:
-  - path: build\$(platform)\Release
-    name: DriverFiles_$(platform)
+  - path: artifacts\$(platform)\*
+    name: Driver_$(platform)
+    type: zip
+
+# On build success
+on_success:
+  - ps: Write-Output "Build completed successfully. Artifacts should be available."
+   
