@@ -1,93 +1,45 @@
+
 version: 1.0.{build}
 
-# Environment configuration
 environment:
   matrix:
     - platform: x64
     - platform: x86
   APPVEYOR_BUILD_WORKER_IMAGE: Visual Studio 2019
-  WDK_SETUP_URL: "https://go.microsoft.com/fwlink/?linkid=2128854"
+  artifactName: $(APPVEYOR_PROJECT_NAME)-$(APPVEYOR_REPO_COMMIT)
 
-# Install dependencies
+configuration:
+  - Release
+  - Debug
+
+branches:
+  only:
+    - master
+
 install:
-  - powershell: |
-      Write-Output 'Downloading and installing the latest WDK from Microsoft...'
-      try {
-          Invoke-WebRequest -Uri $env:WDK_SETUP_URL -OutFile wdksetup.exe -ErrorAction Stop
-          Start-Process -FilePath .\wdksetup.exe -ArgumentList '/quiet' -Wait
-          Write-Output 'WDK installation complete.'
-      }
-      catch {
-          Write-Error "Failed to download or install WDK: $_"
-          exit 1
-      }
-  
-  - powershell: |
-      Write-Output 'Verifying WDK installation...'
-      if (-Not (Test-Path 'C:\Program Files (x86)\Windows Kits\10')) {
-          Write-Error 'WDK installation failed - Windows Kits directory not found!'
-          exit 1
-      }
-      Write-Output 'WDK verified successfully.'
+  - git submodule update --init --recursive
+  # Download and install Windows Driver Kit (WDK)
+  - ps: Install-Product $env:platform
+  - appveyor DownloadFile https://go.microsoft.com/fwlink/?linkid=2085767 -FileName wdksetup.exe
+  - wdksetup.exe /quiet /norestart
+  - ps: Start-Sleep -s 15
 
-# Build configuration
+before_build:
+  - cd driver
+  - mkdir build
+  - cd build
+
+build:
+  verbosity: detailed
+
 build_script:
-  - ps: |
-      # First, let's check what files we actually have
-      Write-Output "Current directory contents:"
-      Get-ChildItem -Recurse | Select-Object FullName
-
-      # Set output directory relative to build folder
-      $buildDir = $env:APPVEYOR_BUILD_FOLDER
-      $outputDir = Join-Path $buildDir "bin\$env:platform\Release"
-      Write-Output "Build directory: $buildDir"
-      Write-Output "Output directory: $outputDir"
-
-      # Create output directory
-      New-Item -ItemType Directory -Force -Path $outputDir | Out-Null
-
-      # Find the solution file (located inside the driver directory)
-      $solutionFile = Get-ChildItem -Path (Join-Path $buildDir 'driver') -Filter "*.sln" -Recurse | Select-Object -First 1
-      if ($null -eq $solutionFile) {
-          Write-Error "No .sln file found in the 'driver' directory"
-          throw "No solution file found"
-      }
-      Write-Output "Found solution file: $($solutionFile.FullName)"
-
-      # Build the solution
-      $msbuildPath = "C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\MSBuild\Current\Bin\MSBuild.exe"
-      if (-not (Test-Path $msbuildPath)) {
-          $msbuildPath = "msbuild"
-      }
-
-      & $msbuildPath $solutionFile.FullName `/p:Configuration=Release `/p:Platform=$env:platform `/p:OutDir=$outputDir `/verbosity:normal
-
-      if ($LastExitCode -ne 0) {
-          Write-Error "Build failed with exit code $LastExitCode"
-          throw "Build failed"
-      }
-
-      # List files in output directory
-      Write-Output "`nFiles in output directory:"
-      Get-ChildItem -Path $outputDir -Recurse | ForEach-Object {
-          Write-Output $_.FullName
-      }
+  - msbuild ..\*.sln /p:Configuration=%CONFIGURATION% /p:Platform=%PLATFORM% /p:UseEnv=true
 
 after_build:
-  - ps: |
-      # Package artifacts
-      $artifactDir = Join-Path $env:APPVEYOR_BUILD_FOLDER "artifacts\$env:platform"
-      New-Item -ItemType Directory -Force -Path $artifactDir | Out-Null
-
-      # Copy build outputs to artifact directory
-      Copy-Item -Path "$outputDir\*" -Destination $artifactDir -Recurse -Force
-
-      Write-Output "`nContents of artifact directory:"
-      Get-ChildItem -Path $artifactDir -Recurse | ForEach-Object {
-          Write-Output $_.FullName
-      }
+  - mkdir %artifactName%
+  - xcopy /E /I ..\%CONFIGURATION%\* %artifactName%\
 
 artifacts:
-  - path: artifacts\$(platform)\*
-    name: Driver_$(platform)
+  - path: driver\build\%artifactName%
+    name: Driver_%PLATFORM%
     type: zip
