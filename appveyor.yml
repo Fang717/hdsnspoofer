@@ -1,0 +1,27 @@
+# appveyor.yml for building a Windows driver with MSVC 2015 and WDK 10.0.14393
+version: 1.0.{build}
+
+image: Visual Studio 2015
+
+environment:
+  WDKPath: "C:\\Program Files (x86)\\Windows Kits\\10"
+  Platform: x64
+
+build_script:
+  - ps: |
+      # Set up the WDK environment
+      $env:WDK_INC = Join-Path $env:WDKPath "Include\\10.0.14393.0"
+      $env:WDK_LIB = Join-Path $env:WDKPath "Lib\\10.0.14393.0"
+      # Verify the WDK installation
+      if (!(Test-Path $env:WDK_INC) -or !(Test-Path $env:WDK_LIB)) {
+        throw "WDK 10.0.14393 not found!"
+      }
+
+  - cmd: |
+      # Use MSBuild to compile the driver
+      MSBuild.exe SOURCES /p:Configuration=Release;Platform=%Platform%
+
+artifacts:
+  # Collect the output driver files
+  - path: bin\Release\*.sys
+    name: Driver Files
