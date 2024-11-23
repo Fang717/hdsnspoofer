@@ -11,20 +11,27 @@ environment:
 
 build_script:
   - ps: |
-      # Ensure WDK and SDK environment is set up
-      Write-Output "Setting up WDK and SDK environment..."
-      $wdkEnv = "$env:WDK_PATH\bin\10.0.17763.0\x64\setenv.bat"
-      if (Test-Path $wdkEnv) {
-          cmd /c "$wdkEnv"
-          if ($LASTEXITCODE -ne 0) {
-              Write-Error "Failed to execute WDK setenv.bat script."
-              exit 1
-          }
-          Write-Output "WDK environment set up successfully."
+      # Debugging: List available WDK paths
+      Write-Output "Checking WDK paths..."
+      Get-ChildItem -Path "$env:WDK_PATH\bin\" -Recurse -Force | ForEach-Object { $_.FullName }
+
+      # Find WDK setenv.bat dynamically
+      Write-Output "Searching for WDK environment setup script..."
+      $wdkEnv = Get-ChildItem -Path "$env:WDK_PATH\bin\" -Recurse -Filter "setenv.bat" | Select-Object -First 1
+      if ($null -eq $wdkEnv) {
+          Write-Error "WDK setenv.bat script not found!"
+          exit 1
       } else {
-          Write-Error "Failed to locate WDK environment setup script."
+          Write-Output "Found WDK setenv.bat at: $($wdkEnv.FullName)"
+      }
+
+      # Execute the WDK setenv.bat script
+      cmd /c "$($wdkEnv.FullName)"
+      if ($LASTEXITCODE -ne 0) {
+          Write-Error "Failed to execute WDK setenv.bat script."
           exit 1
       }
+      Write-Output "WDK environment set up successfully."
 
       # Build the driver project
       Write-Output "Building the driver..."
