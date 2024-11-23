@@ -24,7 +24,6 @@ install:
     }
 
 # Build configuration
-build:
-  script:
-    - Write-Output "Starting build for $env:platform..."
-    - msbuild /p:Configuration=Release /p:Platform=$env:platform driver\DriverProject.sln
+build_script:
+  - Write-Output "Starting build for $env:platform..."
+  - msbuild /p:Configuration=Release /p:Platform=$env:platform driver\DriverProject.sln
