@@ -1,45 +1,36 @@
 
-version: 1.0.{build}
+# AppVeyor configuration for compiling a Windows driver
 
+version: "{build}"
+image: Visual Studio 2019
+
+# Environment variables
 environment:
-  matrix:
-    - platform: x64
-    - platform: x86
-  APPVEYOR_BUILD_WORKER_IMAGE: Visual Studio 2019
-  artifactName: $(APPVEYOR_PROJECT_NAME)-$(APPVEYOR_REPO_COMMIT)
-
-configuration:
-  - Release
-  - Debug
-
-branches:
-  only:
-    - master
-
-install:
-  - git submodule update --init --recursive
-  # Download and install Windows Driver Kit (WDK)
-  - ps: Install-Product $env:platform
-  - appveyor DownloadFile https://go.microsoft.com/fwlink/?linkid=2085767 -FileName wdksetup.exe
-  - wdksetup.exe /quiet /norestart
-  - ps: Start-Sleep -s 15
-
-before_build:
-  - cd driver
-  - mkdir build
-  - cd build
-
-build:
-  verbosity: detailed
+  platform: x64
+  configuration: Release
+  WDK_PATH: C:\Program Files (x86)\Windows Kits\10
 
 build_script:
-  - msbuild ..\*.sln /p:Configuration=%CONFIGURATION% /p:Platform=%PLATFORM% /p:UseEnv=true
+  - ps: |
+      # Ensure WDK and SDK environment is set up
+      Write-Output "Setting up WDK and SDK environment..."
+      $wdkEnv = "$env:WDK_PATH\bin\10.0.17763.0\x64\setenv.bat"
+      if (Test-Path $wdkEnv) {
+          cmd /c "$wdkEnv" &&
+          Write-Output "WDK environment set up successfully."
+      } else {
+          Write-Output "Failed to locate WDK environment setup script."
+          exit 1
+      }
 
-after_build:
-  - mkdir %artifactName%
-  - xcopy /E /I ..\%CONFIGURATION%\* %artifactName%\
+      # Build the driver project
+      Write-Output "Building the driver..."
+      msbuild hdsnspoofer.sln /p:Configuration=$env:configuration /p:Platform=$env:platform
 
 artifacts:
-  - path: driver\build\%artifactName%
-    name: Driver_%PLATFORM%
-    type: zip
+  - path: bin\x64\Release\*.sys
+    name: Driver Binary
+    type: file
+  - path: bin\x64\Release\*.inf
+    name: Driver INF
+    type: file
