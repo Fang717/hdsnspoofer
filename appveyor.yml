@@ -1,22 +1,44 @@
-# AppVeyor Configuration File
+# AppVeyor Configuration for Driver Build
 version: 1.0.{build}
 
+# Environment configuration
 environment:
-  platform: x64
+  matrix:
+    - platform: x64
+    - platform: x86
   APPVEYOR_BUILD_WORKER_IMAGE: Visual Studio 2019
-  WDK_VERSION: 10.0.22621.0
+  WDK_SETUP_URL: "https://go.microsoft.com/fwlink/?linkid=2128854"
 
+# Install dependencies
 install:
   - ps: |
-      Write-Output "Installing WDK version $env:WDK_VERSION..."
-      choco install windows-driver-kit --version=10.0.22621.0
+      Write-Output "Downloading and installing the latest WDK from Microsoft..."
+      Invoke-WebRequest -Uri $env:WDK_SETUP_URL -OutFile wdksetup.exe
+      Start-Process -FilePath .\wdksetup.exe -ArgumentList "/quiet" -Wait
+      Write-Output "WDK installation complete."
+  - ps: |
+      Write-Output "Verifying WDK installation..."
+      if (-Not (Test-Path "C:\Program Files (x86)\Windows Kits\10")) {
+          throw "WDK installation failed!"
+      } else {
+          Write-Output "WDK installed successfully."
+      }
 
+# Pre-build steps
 before_build:
-  - cmd: set
+  - ps: |
+      Write-Output "Environment variables:"
+      Get-ChildItem Env:
 
+# Build script
 build_script:
   - ps: |
-      Write-Output "Building for $env:platform..."
+      Write-Output "Starting build for $env:platform..."
       msbuild /p:Configuration=Release /p:Platform=$env:platform DriverProject.sln
 
-   
+# Artifacts to collect
+artifacts:
+  - path: bin\Release\x64\*.sys
+    name: Driver-x64
+  - path: bin\Release\x86\*.sys
+    name: Driver-x86
