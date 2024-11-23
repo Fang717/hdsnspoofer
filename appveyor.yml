@@ -1,4 +1,3 @@
-# AppVeyor Configuration for Driver Build
 version: 1.0.{build}
 
 # Environment configuration
@@ -11,34 +10,21 @@ environment:
 
 # Install dependencies
 install:
-  - ps: |
-      Write-Output "Downloading and installing the latest WDK from Microsoft..."
-      Invoke-WebRequest -Uri $env:WDK_SETUP_URL -OutFile wdksetup.exe
-      Start-Process -FilePath .\wdksetup.exe -ArgumentList "/quiet" -Wait
-      Write-Output "WDK installation complete."
-  - ps: |
-      Write-Output "Verifying WDK installation..."
-      if (-Not (Test-Path "C:\Program Files (x86)\Windows Kits\10")) {
-          throw "WDK installation failed!"
-      } else {
-          Write-Output "WDK installed successfully."
-      }
+  - Write-Output "Downloading and installing the latest WDK from Microsoft..."
+  - Invoke-WebRequest -Uri $env:WDK_SETUP_URL -OutFile wdksetup.exe
+  - Start-Process -FilePath .\wdksetup.exe -ArgumentList "/quiet" -Wait
+  - Write-Output "WDK installation complete."
+  
+  # Verifying WDK installation
+  - Write-Output "Verifying WDK installation..."
+  - if (-Not (Test-Path "C:\Program Files (x86)\Windows Kits\10")) {
+      throw "WDK installation failed!"
+    } else {
+      Write-Output "WDK installed successfully."
+    }
 
-# Pre-build steps
-before_build:
-  - ps: |
-      Write-Output "Environment variables:"
-      Get-ChildItem Env:
-
-# Build script
-build_script:
-  - ps: |
-      Write-Output "Starting build for $env:platform..."
-      msbuild /p:Configuration=Release /p:Platform=$env:platform DriverProject.sln
-
-# Artifacts to collect
-artifacts:
-  - path: bin\Release\x64\*.sys
-    name: Driver-x64
-  - path: bin\Release\x86\*.sys
-    name: Driver-x86
+# Build configuration
+build:
+  script:
+    - Write-Output "Starting build for $env:platform..."
+    - msbuild /p:Configuration=Release /p:Platform=$env:platform driver\DriverProject.sln
