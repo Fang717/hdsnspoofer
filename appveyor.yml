@@ -1,0 +1,35 @@
+# AppVeyor Configuration File
+version: 1.0.{build}
+
+# Build platform matrix
+platform:
+  - x64
+  - x86
+
+# Environment settings
+environment:
+  matrix:
+    - APPVEYOR_BUILD_WORKER_IMAGE: Visual Studio 2019
+      WDK_VERSION: 10.0.22621.0  # Adjust to the specific version of WDK 10 you're using
+
+# Build Script
+build_script:
+  - cmd: |
+      IF "%platform%"=="x64" (
+        msbuild /p:Configuration=Release /p:Platform=x64 DriverProject.sln
+      ) ELSE (
+        msbuild /p:Configuration=Release /p:Platform=x86 DriverProject.sln
+      )
+
+# Artifacts to collect
+artifacts:
+  - path: bin\Release\x64\*.sys
+    name: Driver-x64
+  - path: bin\Release\x86\*.sys
+    name: Driver-x86
+
+# Install dependencies
+install:
+  - ps: |
+      # Install the specific version of WDK if necessary
+      Write-Output "Using WDK version: $env:WDK_VERSION"
