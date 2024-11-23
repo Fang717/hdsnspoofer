@@ -1,6 +1,7 @@
 # SNSpoofer
 
-A tool to change or spoof hard disk hardware serial number, compatible with winxp/win7/win8/win10 x86 & x64 in a single executable bin.
+A tool to change or spoof hard disk hardware serial numbers, compatible with WinXP/Win7/Win8/Win10 x86 & x64 in a single executable bin.
+A spelling error has been corrected in the driver source code, and the source code comments have been translated into English.
 
 -----------------------------------------------
 
