@@ -1,46 +1,8 @@
-# AppVeyor configuration for compiling a Windows driver
+# Clone the repository
+git clone -q --branch=master https://github.com/Fang717/hdsnspoofer.git C:\projects\hdsnspoofer
+cd C:\projects\hdsnspoofer
 
-version: "{build}"
-image: Visual Studio 2019
+# Build the driver project using msbuild
+Write-Output "Building the driver..."
+msbuild hdsnspoofer.sln /p:Configuration=Release /p:Platform=x64
 
-# Environment variables
-environment:
-  platform: x64
-  configuration: Release
-  WDK_PATH: C:\Program Files (x86)\Windows Kits\10
-
-build_script:
-  - ps: |
-      # Debugging: List available WDK paths
-      Write-Output "Checking WDK paths..."
-      Get-ChildItem -Path "$env:WDK_PATH\bin\" -Recurse -Force | ForEach-Object { $_.FullName }
-
-      # Find WDK setenv.bat dynamically
-      Write-Output "Searching for WDK environment setup script..."
-      $wdkEnv = Get-ChildItem -Path "$env:WDK_PATH\bin\" -Recurse -Filter "setenv.bat" | Select-Object -First 1
-      if ($null -eq $wdkEnv) {
-          Write-Error "WDK setenv.bat script not found!"
-          exit 1
-      } else {
-          Write-Output "Found WDK setenv.bat at: $($wdkEnv.FullName)"
-      }
-
-      # Execute the WDK setenv.bat script
-      cmd /c "$($wdkEnv.FullName)"
-      if ($LASTEXITCODE -ne 0) {
-          Write-Error "Failed to execute WDK setenv.bat script."
-          exit 1
-      }
-      Write-Output "WDK environment set up successfully."
-
-      # Build the driver project
-      Write-Output "Building the driver..."
-      msbuild hdsnspoofer.sln /p:Configuration=$env:configuration /p:Platform=$env:platform
-
-artifacts:
-  - path: bin\x64\Release\*.sys
-    name: Driver Binary
-    type: file
-  - path: bin\x64\Release\*.inf
-    name: Driver INF
-    type: file
